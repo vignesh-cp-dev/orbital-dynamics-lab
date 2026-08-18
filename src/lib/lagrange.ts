@@ -59,7 +59,7 @@ export const PRESETS: Preset[] = [
 ];
 
 export function presetById(id: PresetId): Preset {
-  return PRESETS.find((p) => p.id === id) ?? PRESETS[0];
+  return PRESETS.find((p) => p.id === id) ?? (PRESETS[0] as Preset);
 }
 
 export function paramsFromPreset(id: PresetId): SystemParams {
