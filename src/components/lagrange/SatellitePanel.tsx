@@ -83,7 +83,7 @@ export function SatellitePanel({
   );
 }
 
-function Metric({ label, value, color }: { label: string; value: string; color?: string }) {
+function Metric({ label, value, color }: { label: string; value: string; color?: string | undefined }) {
   return (
     <div className="border-b border-border py-1.5">
       <div className="label-micro">{label}</div>
