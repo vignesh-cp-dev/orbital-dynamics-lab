@@ -255,7 +255,7 @@ export function OrbitalView({
           />
           <text
             x={solution.secondary.x}
-            y={-solution.secondaryRadius - 0.055}
+            y={-solution.secondaryRadius - 0.135}
             textAnchor="middle"
             fill="var(--foreground)"
             fontSize={0.048}
