@@ -276,8 +276,9 @@ export function OrbitalView({
             const color = stabilityColor(p);
             const labelW = 0.115;
             const labelH = 0.072;
+            const above = p.id === "L4" || p.id === "L5";
             const lx = cx + 0.052;
-            const ly = cy - 0.098;
+            const ly = above ? cy - 0.098 : cy + 0.038;
             return (
               <g
                 key={p.id}
@@ -349,9 +350,9 @@ export function OrbitalView({
                 {/* boxed technical label — high contrast, fixed footprint */}
                 <line
                   x1={cx + 0.018}
-                  y1={cy - 0.026}
+                  y1={above ? cy - 0.026 : cy + 0.026}
                   x2={lx + 0.006}
-                  y2={ly + labelH}
+                  y2={above ? ly + labelH : ly}
                   stroke={color}
                   strokeWidth={0.0028}
                   opacity={0.5}
