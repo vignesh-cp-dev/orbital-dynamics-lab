@@ -176,7 +176,7 @@ function Explorer() {
         </main>
 
         {/* right panel — desktop */}
-        <aside className="hidden w-[300px] shrink-0 border-l border-border bg-panel xl:block">
+        <aside className="hidden w-[312px] shrink-0 border-l border-border bg-panel/80 shadow-[inset_14px_0_24px_-24px_oklch(0_0_0/80%)] xl:block">
           {right}
         </aside>
       </div>
