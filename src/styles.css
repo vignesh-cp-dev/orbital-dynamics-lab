@@ -164,3 +164,44 @@
     transform: translateX(320%);
   }
 }
+
+/* Instrument motion — restrained, presentation-safe */
+@keyframes marker-breathe {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.14);
+  }
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@keyframes drift-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility vignette {
+  background: radial-gradient(
+    120% 90% at 50% 45%,
+    transparent 42%,
+    color-mix(in oklab, var(--background) 82%, black) 100%
+  );
+}
+
+@utility panel-float {
+  background: color-mix(in oklab, var(--panel) 88%, black 12%);
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 5%),
+    0 10px 28px -18px oklch(0 0 0 / 80%);
+}
