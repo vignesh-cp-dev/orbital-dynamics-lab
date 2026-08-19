@@ -27,7 +27,7 @@ export function SimControls({
   solution,
 }: SimControlsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-border bg-surface/60 px-4 py-2.5">
+    <div className="flex flex-wrap items-center gap-3 border-t border-border bg-surface/55 px-5 py-3">
       <div className="flex items-center gap-1">
         <button
           onClick={onRun}
@@ -57,7 +57,7 @@ export function SimControls({
         </button>
       </div>
 
-      <div className="flex items-center gap-1 border-l border-border pl-3">
+      <div className="flex items-center gap-1 border-l border-border pl-4">
         <span className="label-micro mr-1">Speed</span>
         {SPEEDS.map((s) => (
           <button

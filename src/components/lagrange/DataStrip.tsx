@@ -12,14 +12,14 @@ export function DataStrip({ solution }: { solution: SystemSolution }) {
   ];
 
   return (
-    <div className="scroll-thin flex shrink-0 items-stretch overflow-x-auto border-t border-border bg-surface/60">
+    <div className="scroll-thin flex shrink-0 items-stretch overflow-x-auto border-t border-border bg-surface/40">
       {cells.map((c) => (
         <div
           key={c.label}
-          className="flex min-w-[7.5rem] flex-1 flex-col justify-center gap-1 border-r border-border px-3 py-2 last:border-r-0"
+          className="flex min-w-[8.25rem] flex-1 flex-col justify-center gap-1.5 border-r border-border px-4 py-3 last:border-r-0"
         >
           <span className="label-micro whitespace-nowrap">{c.label}</span>
-          <span className="readout whitespace-nowrap text-[0.72rem] text-foreground/90">
+          <span className="readout whitespace-nowrap text-[0.78rem] text-foreground">
             {c.value}
           </span>
         </div>
