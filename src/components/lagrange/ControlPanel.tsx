@@ -15,9 +15,9 @@ interface ControlPanelProps {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-b border-border px-4 py-4">
+    <section className="border-b border-border px-5 py-5">
       <h3 className="label-micro mb-3 text-foreground/70">{title}</h3>
-      <div className="space-y-3.5">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
   );
 }
@@ -28,7 +28,7 @@ export function ControlPanel({ params, onParamsChange, onPreset }: ControlPanelP
   return (
     <div className="scroll-thin h-full overflow-y-auto">
       <Section title="Presets">
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-3 gap-2">
           {PRESETS.map((p) => {
             const active = params.presetId === p.id;
             return (
