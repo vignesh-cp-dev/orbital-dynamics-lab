@@ -107,6 +107,78 @@ export interface SystemSolution {
 
 const cbrt = (v: number) => Math.cbrt(v);
 
+function collinearEquilibriumFunction(x: number, mu: number): number {
+  const dxPrimary = x + mu;
+  const dxSecondary = x - 1 + mu;
+
+  return (
+    x -
+    (1 - mu) * (dxPrimary / Math.abs(dxPrimary) ** 3) -
+    mu * (dxSecondary / Math.abs(dxSecondary) ** 3)
+  );
+}
+
+function solveCollinearRoot(
+  mu: number,
+  lower: number,
+  upper: number,
+  tolerance = 1e-12,
+): number {
+  let left = lower;
+  let right = upper;
+  let fLeft = collinearEquilibriumFunction(left, mu);
+  let fRight = collinearEquilibriumFunction(right, mu);
+
+  if (Math.abs(fLeft) < tolerance) return left;
+  if (Math.abs(fRight) < tolerance) return right;
+
+  if (fLeft * fRight > 0) {
+    const sampleCount = 256;
+    let prevX = left;
+    let prevF = fLeft;
+
+    for (let i = 1; i <= sampleCount; i += 1) {
+      const x = left + ((right - left) * i) / sampleCount;
+      const f = collinearEquilibriumFunction(x, mu);
+
+      if (Math.abs(f) < tolerance) return x;
+      if (prevF * f <= 0) {
+        left = prevX;
+        right = x;
+        fLeft = prevF;
+        fRight = f;
+        break;
+      }
+
+      prevX = x;
+      prevF = f;
+    }
+
+    if (fLeft * fRight > 0) {
+      return (left + right) / 2;
+    }
+  }
+
+  for (let i = 0; i < 200; i += 1) {
+    const midpoint = (left + right) / 2;
+    const fMid = collinearEquilibriumFunction(midpoint, mu);
+
+    if (Math.abs(fMid) < tolerance || right - left < tolerance) {
+      return midpoint;
+    }
+
+    if (fLeft * fMid <= 0) {
+      right = midpoint;
+      fRight = fMid;
+    } else {
+      left = midpoint;
+      fLeft = fMid;
+    }
+  }
+
+  return (left + right) / 2;
+}
+
 export function solveSystem(params: SystemParams): SystemSolution {
   const { primaryMass: m1, secondaryMass: m2, separation: d } = params;
   const mu = m2 / (m1 + m2);
@@ -114,10 +186,18 @@ export function solveSystem(params: SystemParams): SystemSolution {
   const primary: Vec2 = { x: -mu, y: 0 };
   const secondary: Vec2 = { x: 1 - mu, y: 0 };
 
-  const hill = cbrt(mu / 3);
-  const l1x = secondary.x - hill * (1 - hill / 3);
-  const l2x = secondary.x + hill * (1 + hill / 3);
-  const l3x = -(1 + (5 * mu) / 12);
+  // L1/L2/L3 are obtained by solving the full CR3BP collinear equilibrium equation
+  // numerically in the rotating frame, rather than using Hill-radius approximations.
+  const l3Lower = -1 - mu;
+  const l3Upper = -mu - 1e-10;
+  const l1Lower = -mu + 1e-10;
+  const l1Upper = 1 - mu - 1e-10;
+  const l2Lower = 1 - mu + 1e-10;
+  const l2Upper = 2.0;
+
+  const l1x = solveCollinearRoot(mu, l1Lower, l1Upper);
+  const l2x = solveCollinearRoot(mu, l2Lower, l2Upper);
+  const l3x = solveCollinearRoot(mu, l3Lower, l3Upper);
 
   const mk = (
     id: PointId,
@@ -160,14 +240,14 @@ export function solveSystem(params: SystemParams): SystemSolution {
     L4: mk(
       "L4",
       { x: 0.5 - mu, y: Math.sqrt(3) / 2 },
-      d,
+      Math.hypot(0.5 - mu + mu, Math.sqrt(3) / 2) * d,
       `from ${params.primaryName}`,
       mu < 0.0385 ? "stable" : "metastable",
     ),
     L5: mk(
       "L5",
       { x: 0.5 - mu, y: -Math.sqrt(3) / 2 },
-      d,
+      Math.hypot(0.5 - mu + mu, -Math.sqrt(3) / 2) * d,
       `from ${params.primaryName}`,
       mu < 0.0385 ? "stable" : "metastable",
     ),
@@ -251,8 +331,8 @@ export function formatDistance(km: number): string {
 }
 
 export function formatRatio(ratio: number): string {
-  if (ratio >= 1e5) return `1 : ${ratio.toExponential(2)}`;
-  return `1 : ${ratio.toFixed(2)}`;
+  if (ratio >= 1e5) return `${ratio.toExponential(2)} : 1`;
+  return `${ratio.toFixed(2)} : 1`;
 }
 
 /* ---------- satellite demo telemetry ---------- */
