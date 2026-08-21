@@ -8,7 +8,13 @@
 
 ## 📸 Preview
 
-![Orbital Dynamics Lab](assets/lagrange-overview.png)
+### Main Interface
+
+![Orbital Dynamics Lab](assets/orbital-dynamics-ui.png)
+
+### Lagrange Point Visualization
+
+![Lagrange Point Visualization](assets/lagrange-overview.png)
 
 ---
 
