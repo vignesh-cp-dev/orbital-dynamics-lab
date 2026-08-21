@@ -2,10 +2,13 @@ import { Rocket, Square } from "lucide-react";
 import {
   POINT_IDS,
   formatDistance,
-  satelliteTelemetry,
   type PointId,
   type SystemSolution,
 } from "@/lib/lagrange";
+import {
+  normalizedTimeToSeconds,
+  type SatelliteState,
+} from "@/lib/satellitePhysics";
 
 interface SatellitePanelProps {
   solution: SystemSolution;
@@ -15,6 +18,9 @@ interface SatellitePanelProps {
   active: boolean;
   onToggle: () => void;
   time: number;
+  satelliteState: SatelliteState | null;
+  perturbation: number;
+  onPerturbationChange: (v: number) => void;
 }
 
 export function SatellitePanel({
@@ -25,14 +31,26 @@ export function SatellitePanel({
   active,
   onToggle,
   time,
+  satelliteState,
+  perturbation,
+  onPerturbationChange,
 }: SatellitePanelProps) {
-  const tel = satelliteTelemetry(solution.points[target], time, separationKm);
+  const point = solution.points[target];
+  const selectedPosition = satelliteState?.position ?? point.pos;
+  const distanceFromTarget = Math.hypot(
+    selectedPosition.x - point.pos.x,
+    selectedPosition.y - point.pos.y,
+  );
+  const velocityMagnitude = satelliteState
+    ? Math.hypot(satelliteState.velocity.x, satelliteState.velocity.y)
+    : 0;
+  const status = satelliteState?.valid === false ? "INVALID" : active ? "RUNNING" : "IDLE";
   const statusColor =
-    tel.stability === "nominal"
+    status === "RUNNING"
       ? "var(--stable)"
-      : tel.stability === "drifting"
-        ? "var(--warning)"
-        : "var(--unstable)";
+      : status === "INVALID"
+        ? "var(--unstable)"
+        : "var(--warning)";
 
   return (
     <div className="border-t border-border px-4 py-4">
@@ -66,18 +84,30 @@ export function SatellitePanel({
         {active ? "STOP SIMULATION" : "RUN SATELLITE SIMULATION"}
       </button>
 
+      <div className="mt-3 space-y-2 border border-border bg-surface/35 p-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="label-micro text-foreground/70">Perturbation</span>
+          <span className="readout text-[0.62rem] text-primary">{perturbation.toExponential(2)}</span>
+        </div>
+        <input
+          type="range"
+          min={1e-8}
+          max={1e-4}
+          step={1e-8}
+          value={perturbation}
+          onChange={(e) => onPerturbationChange(Number(e.target.value))}
+          className="w-full accent-primary"
+        />
+      </div>
+
       <div className="mt-3 grid grid-cols-2 gap-x-3">
-        <Metric label="Sim time" value={`${(active ? tel.elapsed : 0).toFixed(2)} s`} />
-        <Metric label="Velocity" value={`${(active ? tel.velocity : 0).toFixed(3)} km/s`} />
+        <Metric label="Sim time" value={`${time.toFixed(2)} s`} />
+        <Metric label="Velocity" value={`${(active ? velocityMagnitude : 0).toFixed(4)} nd` } />
         <Metric
           label={`Δ from ${target}`}
-          value={active ? formatDistance(tel.offsetKm) : "—"}
+          value={satelliteState ? formatDistance(distanceFromTarget * separationKm) : "—"}
         />
-        <Metric
-          label="Status"
-          value={active ? tel.stability.toUpperCase() : "IDLE"}
-          color={active ? statusColor : undefined}
-        />
+        <Metric label="Status" value={status} color={statusColor} />
       </div>
     </div>
   );

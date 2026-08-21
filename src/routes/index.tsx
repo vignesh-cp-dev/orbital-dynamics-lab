@@ -16,7 +16,15 @@ import {
   type PointId,
   type PresetId,
   type SystemParams,
+  type Vec2,
 } from "@/lib/lagrange";
+import {
+  createInitialSatelliteState,
+  normalizedTimeToSeconds,
+  secondsToNormalizedTime,
+  stepSatellite,
+  type SatelliteState,
+} from "@/lib/satellitePhysics";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,32 +55,168 @@ function Explorer() {
   const [time, setTime] = useState(0);
   const [satTarget, setSatTarget] = useState<PointId>("L1");
   const [satActive, setSatActive] = useState(false);
-  const [satTime, setSatTime] = useState(0);
+  const [satPerturbation, setSatPerturbation] = useState(1e-6);
+  const [satelliteState, setSatelliteState] = useState<SatelliteState | null>(null);
+  const [satelliteTrail, setSatelliteTrail] = useState<Vec2[]>([]);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
 
+  const satelliteStateRef = useRef<SatelliteState | null>(null);
+  const paramsRef = useRef<SystemParams>(params);
+  const runningRef = useRef(running);
+  const satActiveRef = useRef(satActive);
+  const speedRef = useRef(speed);
+  const rafRef = useRef<number | null>(null);
+  const firstStepLoggedRef = useRef(false);
+
   const solution = useMemo(() => solveSystem(params), [params]);
 
-  const raf = useRef<number | null>(null);
-  const last = useRef<number>(0);
+  useEffect(() => {
+    satelliteStateRef.current = satelliteState;
+  }, [satelliteState]);
+
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
+
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
+
+  useEffect(() => {
+    satActiveRef.current = satActive;
+  }, [satActive]);
+
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
+
+  const initializeSatellite = useCallback(
+    (target: PointId) => {
+      const point = solution.points[target];
+      const base = createInitialSatelliteState(point, params, { x: 0, y: 0 });
+      const nextState: SatelliteState = {
+        ...base,
+        position: {
+          x: base.position.x + satPerturbation,
+          y: base.position.y + satPerturbation * 0.5,
+        },
+        valid: true,
+        error: null,
+      };
+      setTime(0);
+      setSatelliteState(nextState);
+      setSatelliteTrail([nextState.position]);
+      satelliteStateRef.current = nextState;
+      return nextState;
+    },
+    [params, satPerturbation, solution],
+  );
+
   useEffect(() => {
     const tick = (now: number) => {
-      const dt = last.current ? (now - last.current) / 1000 : 0;
-      last.current = now;
-      if (running) {
-        setTime((t) => t + dt * speed);
-        if (satActive) setSatTime((t) => t + dt * speed);
-      }
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => {
-      if (raf.current) cancelAnimationFrame(raf.current);
-      last.current = 0;
-    };
-  }, [running, speed, satActive]);
+      const currentState = satelliteStateRef.current;
+      const currentRunning = runningRef.current;
+      const currentActive = satActiveRef.current;
+      const currentParams = paramsRef.current;
 
-  const status = !running ? "PAUSED" : satActive ? "SAT RUNNING" : "READY";
+      if (!currentRunning || !currentActive || !currentState || !currentState.valid) {
+        if (!currentRunning || !currentActive) {
+          rafRef.current = null;
+          return;
+        }
+        setRunning(false);
+        setSatActive(false);
+        setTime(normalizedTimeToSeconds(currentState ? currentState.time : 0, currentParams));
+        rafRef.current = null;
+        return;
+      }
+
+const dtNow = lastRef.current === null ? 0 : (now - lastRef.current) / 1000;
+lastRef.current = now;
+
+if (dtNow <= 0) {
+  rafRef.current = requestAnimationFrame(tick);
+  return;
+}
+
+const dtTau = secondsToNormalizedTime(dtNow * speedRef.current, currentParams);
+
+      if (!firstStepLoggedRef.current) {
+        firstStepLoggedRef.current = true;
+        console.log("[satellite-debug] FIRST stepSatellite call", {
+          targetPoint: satTarget,
+          initialPosition: currentState.position,
+          initialVelocity: currentState.velocity,
+          perturbation: satPerturbation,
+          dtSeconds: dtNow,
+          dtNormalized: dtTau,
+          params: {
+            ...currentParams,
+            primaryMass: currentParams.primaryMass,
+            secondaryMass: currentParams.secondaryMass,
+            separation: currentParams.separation,
+          },
+        });
+      }
+
+      const next = stepSatellite(currentState, dtTau, currentParams, {
+        minDistanceNormalized: 1e-9,
+        maxAccelerationMagnitude: 1e6,
+      });
+
+      if (!firstStepLoggedRef.current) {
+        firstStepLoggedRef.current = true;
+      }
+
+      console.log("[satellite-debug] stepSatellite result", {
+        targetPoint: satTarget,
+        returnedPosition: next.state.position,
+        returnedVelocity: next.state.velocity,
+        returnedValid: next.valid,
+        returnedTime: next.state.time,
+        error: next.state.error,
+      });
+
+      if (!next.valid) {
+        setSatelliteState(next.state);
+        setSatelliteTrail((trail) => [...trail.slice(-199), next.state.position]);
+        setTime(normalizedTimeToSeconds(next.state.time, currentParams));
+        setRunning(false);
+        setSatActive(false);
+        rafRef.current = null;
+        return;
+      }
+
+      setSatelliteState(next.state);
+      setSatelliteTrail((trail) => [...trail.slice(-199), next.state.position]);
+      setTime(normalizedTimeToSeconds(next.state.time, currentParams));
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    if (!running || !satActive) {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
+
+    lastRef.current = null;
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [running, satActive]);
+
+  const lastRef = useRef<number | null>(null);
+
+  const status =
+    satelliteState && !satelliteState.valid ? "INVALID" : !running ? "PAUSED" : satActive ? "SAT RUNNING" : "READY";
 
   const onParamsChange = useCallback((next: Partial<SystemParams>) => {
     setParams((p) => ({ ...p, ...next }));
@@ -83,11 +227,12 @@ function Explorer() {
   }, []);
 
   const reset = () => {
-    setTime(0);
-    setSatTime(0);
     setSatActive(false);
-    setSelected(null);
-    setRunning(true);
+    setRunning(false);
+    setSelected(satTarget);
+    const resetState = initializeSatellite(satTarget);
+    setSatelliteState(resetState);
+    setSatelliteTrail([resetState.position]);
   };
 
   const left = (
@@ -105,15 +250,32 @@ function Explorer() {
         onTarget={(id) => {
           setSatTarget(id);
           setSelected(id);
+          setSatActive(false);
+          setRunning(false);
+          const nextState = initializeSatellite(id);
+          setSatelliteState(nextState);
+          setSatelliteTrail([nextState.position]);
         }}
         active={satActive}
         onToggle={() => {
-          setSatActive((a) => !a);
-          setSatTime(0);
+          if (satActive) {
+            setSatActive(false);
+            setRunning(false);
+            return;
+          }
+          if (!satelliteState) {
+            const nextState = initializeSatellite(satTarget);
+            setSatelliteState(nextState);
+            setSatelliteTrail([nextState.position]);
+          }
+          setSatActive(true);
           setRunning(true);
           setSelected(satTarget);
         }}
-        time={satTime}
+        time={time}
+        satelliteState={satelliteState}
+        perturbation={satPerturbation}
+        onPerturbationChange={setSatPerturbation}
       />
     </div>
   );
@@ -139,7 +301,11 @@ function Explorer() {
               onSelect={setSelected}
               onHover={setHovered}
               time={time}
-              satellite={satActive ? { active: true, target: satTarget } : null}
+              satellite={
+                satelliteState
+                  ? { active: satActive, target: satTarget, state: satelliteState, trail: satelliteTrail }
+                  : null
+              }
             />
 
             {/* mobile drawer toggles */}
@@ -163,8 +329,20 @@ function Explorer() {
 
           <SimControls
             running={running}
-            onRun={() => setRunning(true)}
-            onPause={() => setRunning(false)}
+            onRun={() => {
+              if (!satelliteState) {
+                const nextState = initializeSatellite(satTarget);
+                setSatelliteState(nextState);
+                setSatelliteTrail([nextState.position]);
+              }
+              setSatActive(true);
+              setRunning(true);
+              setSelected(satTarget);
+            }}
+            onPause={() => {
+              setSatActive(false);
+              setRunning(false);
+            }}
             onReset={reset}
             speed={speed}
             onSpeed={setSpeed}

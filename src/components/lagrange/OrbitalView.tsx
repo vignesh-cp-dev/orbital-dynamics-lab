@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import type { LagrangePoint, PointId, SystemParams, SystemSolution } from "@/lib/lagrange";
+import type { LagrangePoint, PointId, SystemParams, SystemSolution, Vec2 } from "@/lib/lagrange";
+import type { SatelliteState } from "@/lib/satellitePhysics";
 
 interface OrbitalViewProps {
   params: SystemParams;
@@ -10,7 +11,7 @@ interface OrbitalViewProps {
   onHover: (id: PointId | null) => void;
   /** seconds of simulated time, drives subtle motion */
   time: number;
-  satellite: { active: boolean; target: PointId } | null;
+  satellite: { active: boolean; target: PointId; state: SatelliteState; trail: Vec2[] } | null;
 }
 
 const VIEW = 4; // world units across (separation = 1)
@@ -386,35 +387,44 @@ export function OrbitalView({
           {satellite?.active && (
             <g>
               {(() => {
-                const t = solution.points[satellite.target];
-                const cx = t.pos.x;
-                const cy = -t.pos.y;
-                const rx = 0.115;
-                const ry = 0.05;
-                const rad = (satAngle * Math.PI) / 180;
-                const sx = cx + rx * Math.cos(rad);
-                const sy = cy + ry * Math.sin(rad);
+  const VISUAL_SCALE = 200;
+
+const targetPos = solution.points[satellite.target].pos;
+
+const path = satellite.trail
+  .map((p) => {
+    const x = targetPos.x + (p.x - targetPos.x) * VISUAL_SCALE;
+    const y = targetPos.y + (p.y - targetPos.y) * VISUAL_SCALE;
+
+    return `${x.toFixed(5)},${(-y).toFixed(5)}`;
+  })
+  .join(" ");
+
+const s = satellite.state.position;
+
+const sx =
+  targetPos.x + (s.x - targetPos.x) * VISUAL_SCALE;
+
+const sy =
+  -(targetPos.y + (s.y - targetPos.y) * VISUAL_SCALE);
                 return (
                   <>
-                    <ellipse
-                      cx={cx}
-                      cy={cy}
-                      rx={rx}
-                      ry={ry}
+                    <polyline
+                      points={path}
                       fill="none"
                       stroke="var(--warning)"
-                      strokeWidth={0.0038}
-                      strokeDasharray="0.016 0.014"
-                      opacity={0.85}
-                      style={{ animation: "dash-flow 1.6s linear infinite" }}
+                      strokeWidth={0.012}
+                      strokeOpacity={0.7}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
-                    <circle cx={sx} cy={sy} r={0.03} fill="url(#haze)" />
-                    <circle cx={sx} cy={sy} r={0.0105} fill="var(--warning)" />
+                    <circle cx={sx} cy={sy} r={0.032} fill="url(#haze)" />
+                    <circle cx={sx} cy={sy} r={0.011} fill="var(--warning)" />
                     <text
-                      x={sx + 0.03}
-                      y={sy + 0.024}
+                      x={sx + 0.04}
+                      y={sy + 0.03}
                       fill="var(--warning)"
-                      fontSize={0.042}
+                      fontSize={0.045}
                       fontFamily="var(--font-numeric)"
                     >
                       SAT-01

@@ -8,14 +8,7 @@
 
 ## 📸 Preview
 
-### Main Interface
-
-![Orbital Dynamics Lab](assets/orbital-dynamics-ui.png)
-
-### Lagrange Point Visualization
-
-![Lagrange Point Visualization](assets/lagrange-overview.png)
-
+![Orbital Dynamics Lab](assets/space-project.png)
 ---
 
 ## 🌌 Overview
@@ -134,7 +127,8 @@ orbital-dynamics-lab/
 │       └── index.tsx
 │
 ├── assets/
-│   └── lagrange-overview.png
+│   ├── lagrange-overview.png
+│   └── orbital-dynamics-ui.png
 │
 ├── public/
 ├── package.json
